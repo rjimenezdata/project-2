@@ -27,7 +27,7 @@ library(MASS)
 library(scales)
 library(htmltools)
 
-measles <- read_csv(here::here("report", "measles_df_clean.csv"))
+measles <- read_csv(here::here("measles_df_clean.csv"))
 measles <- measles |>
   rename(`Nominal GDP per Capita` = `Nominal GDP`)
 ```
