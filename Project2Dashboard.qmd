@@ -3,7 +3,7 @@ title: "WHO Measles Outbreak Investigation"
 format: 
   dashboard:
     orientation: columns
-    logo:  calpolylogo.avif
+    logo:  "../images/calpolylogo.avif"
     nav-buttons:
       - icon: github
         href: https://github.com/rjimenezdata
@@ -26,16 +26,29 @@ library(broom)
 library(MASS)
 library(scales)
 library(htmltools)
+library(leaflet)
+library(hexbin)
+library(tigris)
+library(sf)
+library(rnaturalearth)
 
-measles <- read_csv(here::here("measles_df_clean.csv"))
+measles <- read_csv(here::here("data", "measles_df_clean.csv"))
 measles <- measles |>
   rename(`Nominal GDP per Capita` = `Nominal GDP`)
+
+romania <- read_csv(here::here("data", "API_ROU_DS2_en_csv_v2_12273.csv"), skip = 3) |>
+  filter(`Indicator Code` == "SE.PRM.CMPT.ZS") |>
+  pivot_longer(cols = 5:last_col()) |>
+  filter(!is.na(value)) |>
+  mutate(name = as.numeric(name))
 ```
 
+# Global Measles Data
 
 ## Annual Measles Cases Data
 
 ### Annual Measles Cases {.tabset}
+
 ```{r}
 #| title: Global Annual Measles Cases Rates per Million
 
@@ -139,7 +152,6 @@ yoy_change <- function(df, region_name) {
 yoy_change(measles, "Western Pacific")
 ```
 
-
 ### Annual Measles Cases Heatmap
 
 ```{r}
@@ -178,7 +190,6 @@ measles_heatmap <- measles |>
                                   by = 2))
 measles_heatmap
 ```
-
 
 ## Socioeconomic Factors
 
@@ -253,7 +264,7 @@ mcv1_plot <- measles |>
 mcv1_plot
 ```
 
-### Tables{.tabset}
+### Tables {.tabset}
 
 ```{r}
 #| title: Correlations Between Demographic Variables
@@ -402,3 +413,86 @@ mcv_gdp <- function(region = NULL, country = NULL, year = NULL){
 mcv_gdp(region = "western pacific", year = 2016)
 ```
 
+## Leaflet Plot
+
+```{r}
+#| title: Leaflet
+
+# Filter to 2024 data
+measles_2024 <- measles |>
+  filter(Year == 2024)
+```
+
+```{r}
+# icon
+measles_icon <- makeIcon(
+  iconUrl = "https://cdn-icons-png.flaticon.com/512/13297/13297903.png",
+  iconWidth = 10,
+  iconHeight = 10
+)
+
+# leaflet map
+leaflet(data = measles_2024) |>
+  addProviderTiles("CartoDB.Positron") |>
+  
+  addMarkers(
+    lng = ~Longitude,
+    lat = ~Latitude,
+    
+    icon = measles_icon,
+    
+    # Total Measles per Million appears when clicked, not just hovered over
+    popup = ~paste0(
+      "<strong>", Country, "</strong><br>",
+      "<strong>", Year, "</strong><br>",
+      "Total Measles per Million: ",
+      `Total Measles per Million`
+    ),
+    
+    # country name appears when hovered over
+    label = ~paste0(
+      Country,
+      ": ",
+      `Total Measles per Million`
+    )
+  )
+  
+```
+
+# Romania Measles Data
+
+```{r}
+#| title: Average MCV1 Coverage for 1 Year Olds Across Time and Region (WHO)
+# make plot
+mcv1_plot <- measles |>
+  filter(Country == "Romania") |>
+  filter(!is.na(`MCV1 Coverage`)) |>
+  ggplot(aes(x = Year, 
+             y = `MCV1 Coverage`)) +
+  geom_line(linewidth = 1,
+            color = "orange") +
+  geom_point(color = "darkorange") +
+  
+  # labels
+  labs(y = "",
+       x = "Year",
+       title = "MCV1 Coverage Over Time") +
+  
+  scale_y_continuous(labels = \(x) paste0(x, "%")) +
+  
+  # edit graph  
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "bold"),
+        legend.title = element_text(face = "bold"),
+        axis.title = element_text(face = "bold"),
+        legend.position = "none")
+
+mcv1_plot
+
+measles |>
+  filter(Country == "Romania") |>
+  filter(!is.na(`MCV1 Coverage`)) |>
+left_join(romania, by = join_by("Year" == "name"))
+```

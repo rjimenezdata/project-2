@@ -35,6 +35,8 @@ measles <- measles |>
   rename(`Nominal GDP per Capita` = `Nominal GDP`)
 
 global_shp <- read_sf(here::here("data/shape_data/World_Countries_Generalized.shp"))
+
+romania <- read_csv(here::here("data/API_ROU_DS_en_csv_v2_12273.csv"))
 ```
 
 
