@@ -33,6 +33,8 @@ library(sf)
 library(rnaturalearth)
 library(gganimate)
 library(gifski)
+library(png)
+library(scales)
 
 measles <- read_csv(here::here("data", "measles_df_clean.csv"))
 measles <- measles |>
@@ -497,12 +499,16 @@ measles |>
   filter(Country == "Romania") |>
   filter(!is.na(`MCV1 Coverage`)) |>
 left_join(romania, by = join_by("Year" == "name")) |>
-  rename("Primary School Completion Rate (%)" = value) |>
-  pivot_longer(cols = c(`MCV1 Coverage`, `Primary School Completion Rate (%)`), names_to = "series",
+  rename("Primary School Completion Rate (%)" = value,
+         "MCV1 Coverage (%)" = `MCV1 Coverage`) |>
+  pivot_longer(cols = c(`MCV1 Coverage (%)`, `Primary School Completion Rate (%)`), names_to = "series",
     values_to = "value") |>
   mutate(series = as.factor(series)) |>
-  ggplot(aes(x = Year, y = value)) + geom_point() + geom_line() +
-  theme_minimal() + theme(panel.grid.minor = element_blank(),
-                          panel.ontop = T) + transition_states(series, transition_length = 2,
+  ggplot(aes(x = Year, y = value)) + geom_point() + geom_line() + labs(
+    title = "Romania: {closest_state}",
+    x = "Year",
+    y = "Value"
+  ) +
+  theme_minimal() + theme(panel.grid.minor = element_blank()) + scale_x_continuous(breaks = c(2015, 2020, 2024)) + scale_y_continuous(labels = scales::percent_format(scale = 1), limits = c(70, 100)) + transition_states(series, transition_length = 2,
                                                                state_length = 1)
 ```
