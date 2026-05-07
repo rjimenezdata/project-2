@@ -31,6 +31,8 @@ library(hexbin)
 library(tigris)
 library(sf)
 library(rnaturalearth)
+library(gganimate)
+library(gifski)
 
 measles <- read_csv(here::here("data", "measles_df_clean.csv"))
 measles <- measles |>
@@ -494,5 +496,13 @@ mcv1_plot
 measles |>
   filter(Country == "Romania") |>
   filter(!is.na(`MCV1 Coverage`)) |>
-left_join(romania, by = join_by("Year" == "name"))
+left_join(romania, by = join_by("Year" == "name")) |>
+  rename("Primary School Completion Rate (%)" = value) |>
+  pivot_longer(cols = c(`MCV1 Coverage`, `Primary School Completion Rate (%)`), names_to = "series",
+    values_to = "value") |>
+  mutate(series = as.factor(series)) |>
+  ggplot(aes(x = Year, y = value)) + geom_point() + geom_line() +
+  theme_minimal() + theme(panel.grid.minor = element_blank(),
+                          panel.ontop = T) + transition_states(series, transition_length = 2,
+                                                               state_length = 1)
 ```
