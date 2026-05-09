@@ -3,7 +3,7 @@ title: "WHO Measles Outbreak Investigation"
 format: 
   dashboard:
     orientation: columns
-    logo:  "../images/calpolylogo.avif"
+    logo:  "calpolylogo.avif"
     nav-buttons:
       - icon: github
         href: https://github.com/rjimenezdata
@@ -11,6 +11,7 @@ format:
     embed-resources: true
 theme: united
 ---
+
 
 ```{r setup}
 #| message: false
