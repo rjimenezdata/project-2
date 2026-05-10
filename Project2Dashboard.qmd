@@ -12,7 +12,6 @@ format:
 theme: united
 ---
 
-
 ```{r setup}
 #| message: false
 
@@ -41,8 +40,25 @@ measles <- read_csv(here::here("data", "measles_df_clean.csv"))
 measles <- measles |>
   rename(`Nominal GDP per Capita` = `Nominal GDP`)
 
-romania <- read_csv(here::here("data", "API_ROU_DS2_en_csv_v2_12273.csv"), skip = 3) |>
+romania <- read_csv(here::here("data", "API_ROU_DS2_en_csv_v2_12273.csv"), 
+                    skip = 3) |>
   filter(`Indicator Code` == "SE.PRM.CMPT.ZS") |>
+  pivot_longer(cols = 5:last_col()) |>
+  filter(!is.na(value)) |>
+  mutate(name = as.numeric(name))
+
+romania_tabset <- read_csv(here::here("data", "API_ROU_DS2_en_csv_v2_12273.csv"), 
+                           skip = 3) |>
+  filter(`Indicator Code` %in% c("SP.DYN.IMRT.IN",
+                                 "NY.GDP.PCAP.PP.CD",
+                                 "SI.POV.DDAY")) |>
+  pivot_longer(cols = 5:last_col()) |>
+  filter(!is.na(value)) |>
+  mutate(name = as.numeric(name))
+
+romania_school <- read_csv(here::here("data", "API_ROU_DS2_en_csv_v2_12273.csv"), 
+                    skip = 3) |>
+  filter(`Indicator Code` == "SE.PRM.ENRR") |>
   pivot_longer(cols = 5:last_col()) |>
   filter(!is.na(value)) |>
   mutate(name = as.numeric(name))
@@ -50,9 +66,9 @@ romania <- read_csv(here::here("data", "API_ROU_DS2_en_csv_v2_12273.csv"), skip 
 
 # Global Measles Data
 
-## Annual Measles Cases Data
+## Annual Measles Cases Data (Left Column) {width="40%"}
 
-### Annual Measles Cases {.tabset}
+### Annual Measles Cases
 
 ```{r}
 #| title: Global Annual Measles Cases Rates per Million
@@ -90,85 +106,17 @@ annual_measles_tbl <- measles |>
 browsable(div(style = "max-height:500px; overflow-y:auto;", annual_measles_tbl))
 ```
 
-```{r}
-#| title: Annual Change in Measles Cases Rates per Million - Western Pacific Region
-yoy_change <- function(df, region_name) {
-  
-  # input checks
-  required_cols <- c("Year", "Region", "Total Measles per Million")
-  
-  if (!all(required_cols %in% names(df))) {
-    missing_cols <- required_cols[!required_cols %in% names(df)]
-    stop(paste("Missing required columns:", paste(missing_cols, collapse = ", ")))}
-  
-  if (!is.character(region_name) || length(region_name) != 1) {
-    stop("Country Name must be a valid country.")}
-  
-  # case when region is not in dataset (handles capitalization)
-  if (!tolower(region_name) %in% c("south east asia", "europe", 
-                                    "western pacific", "americas", 
-                                    "eastern mediterranean", "africa")){
-    stop("Invalid Region Name. Please check spelling. Options are South East Asia, Europe,
-         Western Pacific, America, Eastern Mediterranean, and Africa.")}
-  
-  # make sure first letter is capitalized
-  if (tolower(region_name) %in% c("south east asia", "europe", 
-                                    "western pacific", "americas", 
-                                    "eastern mediterranean", "africa")){
-    region_name <- stringr::str_to_title(region_name)}
-  
-  # empty dataset
-  if (nrow(df) == 0) {
-    warning("No data found.")}
-
-  # create summary table
-    df |>
-    filter(!is.na(`Total Measles per Million`),
-           !is.na(`Total Pop.`)) |>
-    group_by(Year, Region) |>
-    summarize(`Avg. Measles per Million` = mean(`Total Measles per Million`, na.rm = T),
-              `Avg. Pop.` = mean(`Total Pop.`, na.rm = T),
-              .groups = "drop") |>
-    filter(Region == region_name) |>
-    arrange(Year) |> 
-    mutate(`Measles Rate Change` = `Avg. Measles per Million` - 
-             lag(`Avg. Measles per Million`)) |>
-    dplyr::select(Year, `Avg. Pop.`, `Avg. Measles per Million`, 
-           `Measles Rate Change`) |>
-    gt() |>
-      
-    # format numbers
-    fmt_number(columns = c(`Avg. Pop.`, `Avg. Measles per Million`, 
-                         `Measles Rate Change`), use_seps = T) |>
-    fmt_number(columns = `Avg. Pop.`, decimals = 0) |>
-      
-    # labels
-    cols_label(Year = md("**Year**"),
-               "Avg. Pop." = md("**Avg. Pop.**"),
-               "Avg. Measles per Million" = md("**Avg. Measles per Million**"),
-               "Measles Rate Change" = md("**Measles Rate Change**"))} |>
-  
-  # color
-  data_color(columns = `Measles Rate Change`,
-             fn = col_numeric(
-               palette = c("white", "red"),
-               domain = NULL))
-
-yoy_change(measles, "Western Pacific")
-```
 
 ### Num Cases Leaflet Plot
 
-
 ```{r}
-#| title: Cases in 2024 vs MCV1 Coverage vs. GDP per Capita
+#| title: Global Measles Cases in 2024
 
 # icon
 measles_icon <- makeIcon(
-  iconUrl = "https://cdn-icons-png.flaticon.com/512/13297/13297903.png",
+  iconUrl = "https://static.vecteezy.com/system/resources/thumbnails/017/177/954/small/round-medical-cross-symbol-on-transparent-background-free-png.png",
   iconWidth = 10,
-  iconHeight = 10
-)
+  iconHeight = 10)
 
 # leaflet map
 leaflet(data = measles |> filter(Year == 2024)) |>
@@ -182,28 +130,64 @@ leaflet(data = measles |> filter(Year == 2024)) |>
     
     # Total Measles per Million appears when clicked, not just hovered over
     popup = ~paste0(
-      "<strong>", Country, "</strong><br>",
-      "<strong>", Year, "</strong><br>",
+      "<strong>", Country, " (", Year, ")", "</strong><br>",
+      "<strong>", "Region: ", Region, "</strong><br>",
       "Total Measles per Million: ",
       `Total Measles per Million`, "<br>",
       "MCV1 Coverage: ",
       `MCV1 Coverage`, "% <br>",
-      "GDP per Capita: $",
-      `Nominal GDP per Capita`
-      
-    ),
+      "Nominal GDP per Capita: $",
+      format(`Nominal GDP per Capita`, 
+             big.mark = ",", 
+             scientific = FALSE)),
     
     # country name appears when hovered over
-    label = ~paste0(
-      Country
-    )
-  )
+    label = ~paste(Country))
   
 ```
 
-## Socioeconomic Factors
+## Socioeconomic Factors (Right Column) {width="60%"}
 
-### MCV1 Coverage
+### Heatmap
+
+```{r}
+#| title: Average Measles Cases Rates per Million Heatmap
+#| alt-text: "The Americas do not have data for 2012 and 2013. The heatmap indicates that there was a measles outbreak from 2014-2016 in the Western Pacific region. Notably, the African countries seem to have relatively consistent measles cases over time, with a spike in 2019."
+
+# create plot
+measles_heatmap <- measles |>
+  group_by(Region, Year) |>
+  summarise(mean_cases = mean(`Total Measles per Million`, na.rm = TRUE),
+            .groups = "drop") |>
+  
+  # compute log(1+x) since we 0s
+  ggplot(aes(x = Year,
+             y = Region,
+             fill = log1p(mean_cases))) + 
+  geom_tile(color = "white") +
+  
+  # non-default colors
+  scale_fill_continuous(palette = c("white", "red")) + 
+  guides(fill = guide_colorbar(direction = "horizontal")) +
+  
+  # non-default theme
+  theme_classic() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        axis.title = element_text(size = 12),
+        legend.position = "top") +
+  
+  # labels and alt text
+  labs(x = "Year",
+       y = "",
+       fill = "Log (Measles Cases Per Million +1)",
+       caption = "Unlike other regions, the Americas do not have data for 2012 and 2013.") +
+  scale_x_continuous(breaks = seq(min(measles$Year),
+                                  max(measles$Year),
+                                  by = 2))
+measles_heatmap
+```
+
+### MCV1 Coverage {.tabset}
 
 ```{r}
 #| title: Average MCV1 Coverage for 1 Year Olds Across Time and Region (WHO)
@@ -274,8 +258,6 @@ mcv1_plot <- measles |>
 mcv1_plot
 ```
 
-### Tables{.tabset}
-
 ```{r}
 #| title: Correlations Between Demographic Variables
 measles |>
@@ -330,131 +312,114 @@ measles |>
   theme(legend.position = "none") 
 ```
 
-```{r}
-#| title: MCV1 Coverage vs. GDP Table - Western Pacific Countries
-mcv_gdp <- function(region = NULL, country = NULL, year = NULL){
-  
-  # input checks
-    # check that at least region or country is provided
-  if (is.null(region) & is.null(country)) {
-    stop("Please provide at least a region or a country.")}
-  
-  # valid regions
-  valid_regions <- c("South East Asia", "Europe", 
-                     "Western Pacific", "Americas", 
-                     "Eastern Mediterranean", "Africa")
-  
-  # check region only if provided
-  if (!is.null(region)) {
-    if (!is.character(region) || length(region) != 1) {
-      stop("Region must be a single character string.")}
-    
-    if (!tolower(region) %in% tolower(valid_regions)) {
-      stop("Invalid region. Options are: South East Asia, Europe, Western Pacific, Americas, Eastern Mediterranean, Africa.")}
-    region <- str_to_title(region)}
-  
-  # check country only if provided
-  if (!is.null(country)) {
-    if (!is.character(country) || length(country) != 1) {
-      stop("Country must be a single character string.")}
-    
-    if (!tolower(country) %in% tolower(measles$Country)) {
-      stop("Country not found in dataset. Please check spelling.")}}
-  
-  # check year only if provided
-  if (!is.null(year)) {
-    if (!is.numeric(year) || length(year) != 1 || year %% 1 != 0) {
-      stop("Year must be a single integer.")
-    }
-    if (!year %in% measles$Year) {
-      warning("Year not found in dataset.")}}
-  
-  # given country and year
-  if (!is.null(country) & !is.null(year)) {
-    browsable(div(style = "max-height:500px; overflow-y:auto;", 
-      measles |>
-      dplyr::filter(Country == country, Year == year) |>
-      dplyr::select(Country, `Nominal GDP per Capita`, 
-                    `MCV1 Coverage`, `Total Measles per Million`) |>
-        arrange(desc(`Total Measles per Million`)) |>
-        rename("Nominal GDP per Capita ($ USD)" = `Nominal GDP per Capita`) |>
-      gt() |>
-      fmt_number(columns = c(`Nominal GDP per Capita ($ USD)`), decimals = 3) |>
-      fmt(columns = `MCV1 Coverage`,
-          fns = function(x) paste0(x, "%")) |>
-      tab_style(style = cell_text(weight = "bold"),
-                locations = cells_column_labels(everything()))))
-    
-  # given region and year
-  } else if (!is.null(region) & !is.null(year)) {
-    browsable(div(style = "max-height:500px; overflow-y:auto;", 
-      measles |>
-      dplyr::filter(Region == region, Year == year) |>
-      dplyr::select(Country, `Nominal GDP per Capita`, 
-                    `MCV1 Coverage`, `Total Measles per Million`) |>
-        arrange(desc(`Total Measles per Million`)) |>
-        rename("Nominal GDP per Capita ($ USD)" = `Nominal GDP per Capita`) |>
-      gt() |>
-      fmt_number(columns = c(`Nominal GDP per Capita ($ USD)`), decimals = 3) |>
-      fmt(columns = `MCV1 Coverage`,
-          fns = function(x) paste0(x, "%")) |>
-      tab_style(style = cell_text(weight = "bold"),
-                locations = cells_column_labels(everything()))))
-    
-  # given only country
-  } else if (!is.null(country) & is.null(year)) {
-    browsable(div(style = "max-height:500px; overflow-y:auto;", 
-      measles |>
-      dplyr::filter(Country == country) |>
-      dplyr::select(Country, Year, `Nominal GDP per Capita`, 
-                    `MCV1 Coverage`, `Total Measles per Million`) |>
-        arrange(desc(`Total Measles per Million`)) |>
-        rename("Nominal GDP per Capita ($ USD)" = `Nominal GDP per Capita`) |>
-      gt() |>
-      fmt_number(columns = c(`Nominal GDP per Capita ($ USD)`), decimals = 3) |>
-      fmt(columns = `MCV1 Coverage`,
-          fns = function(x) paste0(x, "%")) |>
-      tab_style(style = cell_text(weight = "bold"),
-                locations = cells_column_labels(everything()))))
-    
-  } else {
-    stop("Invalid combination of inputs. Provide either country (+ optional year) or region + year.")}}
-
-mcv_gdp(region = "western pacific", year = 2016)
-```
-
-
-
 # Romania Measles Data
 
-## Single Column
+## Left Column
 
-### Romania: representative case
-Based on our Global Annual Measles Cases Rates per Million table, along with the heatmap, we noticed that Europe 2024 yielded the most recent outbreak of measles cases (last 5 years). Upon examining this region and year further, we noticed that Romania was roughly representative of Europe in terms of population with 19.07 million people and also possessed the largest total measles cases and third largest average cases in Europe 2024. A deeper introspection into potential socioeconomic factors in Romania during 2024 could help us understand the spike in cases.
+### Romania: representative case {height=35%}
+::: {.card title="Motivations for Romania, a representative case."}
 
-Despite decreasing in Measles Coverage Vaccine Rate, socioeconomic factors such as GDP, homelessness, etc. do not appear to decrease. However, we do see a similar decreasing trend for MCV1 Coverage in primary school completion rate. We hypothesize decreasing education rate might be associated with vaccination rate and thus increased measles cases.
+Based on our Global Annual Measles Cases Rates per Million table and accompanying
+heatmap, we observed that the Western Pacific region had the highest measles 
+cases per million between 2014 and 2016. However, the most recent data from 2024
+shows that Europe now leads in measles cases per million. Focusing on Europe, we
+found that Romania is an informative case: its population of 19.07 million is 
+roughly representative of the region, and it reported the largest total measles
+cases and the third highest average cases in Europe 2024, making it an interest
+for further analysis.
+:::
 
-### Average MCV1 Coverage Compared to 
+### Average MCV1 Coverage Compared to {height=65%}
 
 ```{r}
-#| title: Average MCV1 Coverage for 1 Year Olds Across Time and Region (WHO) Compared to Primary School Completion Rate
+#| title: Average MCV1 Coverage Compared to Primary School Enrollment & Completion Rate
 # make plot
 
 measles |>
   filter(Country == "Romania") |>
   filter(!is.na(`MCV1 Coverage`)) |>
-left_join(romania, by = join_by("Year" == "name")) |>
-  rename("Primary School Completion Rate (%)" = value,
+  left_join(romania, by = join_by("Year" == "name")) |>
+  left_join(romania_school, by = join_by("Year" == "name")) |>
+  rename("Primary School Enrollment" = value.y,
+         "Primary School Completion Rate (%)" = value.x,
          "MCV1 Coverage (%)" = `MCV1 Coverage`) |>
-  pivot_longer(cols = c(`MCV1 Coverage (%)`, `Primary School Completion Rate (%)`), names_to = "series",
+  pivot_longer(cols = c(`MCV1 Coverage (%)`, 
+                        `Primary School Enrollment`,
+                        `Primary School Completion Rate (%)`), 
+               names_to = "series",
     values_to = "value") |>
-  mutate(series = as.factor(series)) |>
-  ggplot(aes(x = Year, y = value, color = "orange")) + geom_point() + geom_line() + labs(
-    title = "Romania: {closest_state}",
-    x = "Year",
-    y = "",
-    color = ""
-  ) +
-  theme_minimal() + theme(panel.grid.minor = element_blank()) + scale_x_continuous(breaks = c(2015, 2020, 2024)) + scale_y_continuous(labels = scales::percent_format(scale = 1), limits = c(70, 100)) + transition_states(series, transition_length = 2,
-                                                               state_length = 1)
+  mutate(series = factor(series, levels = c(
+  "MCV1 Coverage (%)",
+  "Primary School Enrollment",
+  "Primary School Completion Rate (%)"))) |>
+  ggplot(aes(x = Year, y = value)) + 
+  geom_line(color = "orange") + 
+  geom_point(color = "darkorange") +
+  labs(title = "Romania: {closest_state}",
+       x = "Year",
+       y = "",
+       color = "") +
+  theme_minimal() + 
+  theme(panel.grid.minor = element_blank()) + 
+  scale_x_continuous(breaks = c(2015, 2020, 2024)) + 
+  scale_y_continuous(labels = scales::percent_format(scale = 1), 
+                     limits = c(70, 100)) + 
+  transition_states(series, 
+                    transition_length = 2,
+                    state_length = 1)
 ```
+
+## Right Column 
+### Row height {height="68%"}
+### Data {.tabset} 
+```{r}
+#| title: Infant Mortality Rate
+romania_tabset |>
+  filter(`Indicator Code` == "SP.DYN.IMRT.IN") |>
+  ggplot(aes(x = name, y = value)) +
+  geom_line(color = "orange") +
+  geom_point(color = "darkorange") +
+  xlim(c(2014, 2024)) +
+  ylim(c(0, 15)) +
+  labs(x = "Year",
+       y = "",
+       title = "Infant Mortality Rate (per 1,000 live births)") +
+  theme_bw()
+```
+```{r}
+#| title: GDP per Capita
+romania_tabset |>
+  filter(`Indicator Code` == "NY.GDP.PCAP.PP.CD") |>
+  ggplot(aes(x = name, y = value)) +
+  geom_line(color = "orange") +
+  geom_point(color = "darkorange") +
+  xlim(c(2014, 2024)) +
+  labs(x = "Year",
+       y = "",
+       title = "GDP per Capita ($)") +
+  theme_bw()
+```
+```{r}
+#| title: Poverty Headcount at $3.00 a day
+romania_tabset |>
+  filter(`Indicator Code` == "SI.POV.DDAY") |>
+  ggplot(aes(x = name, y = value)) +
+  geom_line(color = "orange") +
+  geom_point(color = "darkorange") +
+  xlim(c(2014, 2024)) +
+  labs(x = "Year",
+       y = "",
+       title = "Percentage of the Population Living on Less than $3.00 a Day") +
+  theme_bw()
+```
+
+
+### Analysis {height="32%"}
+:::{.card title="Exploratory Findings"}
+Examining potential contributing factors, we note that while measles vaccination
+coverage (MCV1) has decreased, other socioeconomic indicators such as GDP and
+poverty level have remained relatively stable. Interestingly, primary school enrollment
+and completion rates show a similar declining trend to MCV1 coverage, suggesting a 
+possible link between education levels, vaccination uptake, and the observed 
+increase in measles cases.
+:::
