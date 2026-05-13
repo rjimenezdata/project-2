@@ -167,13 +167,24 @@ leaflet(data = measles |> filter(Year == 2024)) |>
 measles_heatmap <- measles |>
   group_by(Region, Year) |>
   summarise(mean_cases = mean(`Total Measles per Million`, na.rm = TRUE),
+            avg_pop = mean(`Total Pop.`, na.rm = TRUE),
             .groups = "drop") |>
   
   # compute log(1+x) since we 0s
   ggplot(aes(x = Year,
              y = Region,
              fill = log1p(mean_cases))) + 
-  geom_tile(color = "white") +
+  
+  geom_tile(color = "white",
+            aes(
+            text = paste0(
+      "Year: ", Year,
+      "<br>Region: ", Region,
+      "<br>Avg. Cases: ", format(round(mean_cases, 2), 
+             big.mark = ",", 
+             scientific = FALSE),
+      "<br>Average Population: ", format(round(avg_pop, 2), big.mark = ",", scientific = F)
+    ))) +
   
   # non-default colors
   scale_fill_continuous(palette = c("white", "red")) + 
@@ -193,7 +204,8 @@ measles_heatmap <- measles |>
   scale_x_continuous(breaks = seq(min(measles$Year),
                                   max(measles$Year),
                                   by = 2))
-measles_heatmap
+ggplotly(measles_heatmap, tooltip = "text") |>
+  layout(legend = list(orientation = "h", x = 0.5, xanchor = "center", y = 1.1))
 ```
 
 ### MCV1 Coverage {.tabset}
