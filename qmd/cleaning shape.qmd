@@ -1,0 +1,47 @@
+---
+title: "cleaning shape"
+format: html
+editor: visual
+---
+
+```{r}
+#| message: false
+library(sf)
+library(tidyverse)
+library(rvest)
+```
+
+```{r}
+map <- st_read(here::here("data", "shape_data", "World_Countries_Generalized.shp"))
+
+map
+```
+
+```{r}
+# scrape country codes
+codeurl <- "https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes"
+
+# read in page
+page1 <- read_html(codeurl)
+
+tables <- page1 |>
+  html_elements("table")
+
+# code table
+table1 <- tables[[1]] |>
+  html_table(fill = TRUE)
+
+codes <- table1 |>
+  select(Country = `ISO 3166[1]name[5]`,
+         ISO2 = 3,
+         ISO3 = 4) |> 
+  slice(-1)
+
+codes <- codes |> 
+  mutate(across(ISO2, 
+                ~ ifelse(nchar(.) > 3, 
+                         NA, .)),
+         across(ISO3, 
+                ~ ifelse(nchar(.) > 3, 
+                         NA, .)))
+```
