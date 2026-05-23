@@ -1,0 +1,14 @@
+name: measles_dashboard
+title: Measles Dashboard
+username: jkscabrera
+account: jkscabrera
+server: connect.posit.cloud
+hostUrl: https://api.connect.posit.cloud/v1
+appId: 019e3720-6736-ebbf-ee5c-5f513a201363
+bundleId:
+url:
+version: 1
+quarto_version: 1.8.27
+quarto_engines: knitr
+asMultiple: FALSE
+asStatic: FALSE
