@@ -6,10 +6,10 @@ format:
     logo:  "../images/calpolylogo.avif"
     nav-buttons:
       - icon: github
-        href: https://github.com/jasminecabrera
+        href: https://github.com/rjimenezdata
         aria-label: GitHub
       - icon: linkedin
-        href: https://www.linkedin.com/in/jkscabrera/
+        href: https://www.linkedin.com/in/rjimenezanalytics/
         aria-label: LinkedIn
     embed-resources: true
 theme: [united, styles.scss]
